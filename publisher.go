@@ -40,7 +40,7 @@ func (p *Publisher) Subscribe(ctx context.Context, options ...SubscriberOption) 
 	}
 	return sub
 }
-func (p *Publisher) Unsubscribe(sub *Subscriber) {
+func (p *Publisher) unsubscribe(sub *Subscriber) {
 	if sub.channels == nil {
 		_subscribers, _ := p.channelSubscribers.Load(internal.EChannel_All)
 		subscribers := _subscribers.(*sync.Map)
@@ -66,7 +66,7 @@ func (p *Publisher) Publish(topic any, channels ...any) (errorMap map[*Subscribe
 			// 如果已经发布给该订阅者，则跳过
 			return
 		}
-		if err := sub.Publish(topic); err != nil {
+		if err := sub.publish(topic); err != nil {
 			errorMap[sub] = err
 		}
 		publishedClient[sub] = true // 记录已发布的客户端，用于去重

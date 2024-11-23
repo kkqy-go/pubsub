@@ -7,9 +7,9 @@ import (
 
 type SubscriberOption func(*Subscriber)
 
-func SubscribeWithBufferLen(buferLen int) SubscriberOption {
+func SubscribeWithBufferLen(bufLen int) SubscriberOption {
 	return func(sub *Subscriber) {
-		sub.bufferChan = make(chan any, buferLen)
+		sub.bufferChan = make(chan any, bufLen)
 	}
 }
 func SubscribeWithChannels(channels ...any) SubscriberOption {
@@ -28,7 +28,7 @@ type Subscriber struct {
 
 func (s *Subscriber) eventLoop() {
 	defer func() {
-		s.publisher.Unsubscribe(s)
+		s.publisher.unsubscribe(s)
 		close(s.ch) // close the channel when the event loop is done
 	}()
 	for {
@@ -45,14 +45,7 @@ func (s *Subscriber) eventLoop() {
 		}
 	}
 }
-
-// 获取订阅者订阅的频道
-func (s *Subscriber) Channels() []any {
-	return s.channels
-}
-
-// 直接给订阅者发布消息，如果缓冲区已满，则返回错误
-func (s *Subscriber) Publish(topic any) error {
+func (s *Subscriber) publish(topic any) error {
 	select {
 	case s.bufferChan <- topic:
 		return nil
