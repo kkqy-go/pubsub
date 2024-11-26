@@ -3,6 +3,7 @@ package pubsub
 import (
 	"context"
 	"errors"
+	"time"
 )
 
 type SubscriberOption func(*Subscriber)
@@ -17,19 +18,19 @@ func SubscribeWithChannels(channels ...any) SubscriberOption {
 		sub.channels = append(sub.channels, channels...)
 	}
 }
-func SubscriberWithBlocking() SubscriberOption {
+func SubscriberWithTimeout(timeout time.Duration) SubscriberOption {
 	return func(sub *Subscriber) {
-		sub.blockWhenBufferIsFull = true
+		sub.timeout = timeout
 	}
 }
 
 type Subscriber struct {
-	ctx                   context.Context
-	channels              []any
-	publisher             *Publisher
-	blockWhenBufferIsFull bool
-	bufferChan            chan any
-	ch                    chan any
+	ctx        context.Context
+	channels   []any
+	publisher  *Publisher
+	timeout    time.Duration
+	bufferChan chan any
+	ch         chan any
 }
 
 func (s *Subscriber) eventLoop() {
@@ -52,21 +53,13 @@ func (s *Subscriber) eventLoop() {
 	}
 }
 func (s *Subscriber) publish(topic any) error {
-	if s.blockWhenBufferIsFull {
-		select {
-		case s.bufferChan <- topic:
-			return nil
-		case <-s.ctx.Done():
-			return s.ctx.Err()
-		}
-	}
 	select {
 	case s.bufferChan <- topic:
 		return nil
 	case <-s.ctx.Done():
 		return s.ctx.Err()
-	default:
-		return errors.New("subscriber's buffer is full")
+	case <-time.After(s.timeout):
+		return errors.New("publish timeout")
 	}
 }
 func (s *Subscriber) C() <-chan any { return s.ch }
