@@ -17,13 +17,19 @@ func SubscribeWithChannels(channels ...any) SubscriberOption {
 		sub.channels = append(sub.channels, channels...)
 	}
 }
+func SubscriberWithBlocking() SubscriberOption {
+	return func(sub *Subscriber) {
+		sub.blockWhenBufferIsFull = true
+	}
+}
 
 type Subscriber struct {
-	ctx        context.Context
-	channels   []any
-	publisher  *Publisher
-	bufferChan chan any
-	ch         chan any
+	ctx                   context.Context
+	channels              []any
+	publisher             *Publisher
+	blockWhenBufferIsFull bool
+	bufferChan            chan any
+	ch                    chan any
 }
 
 func (s *Subscriber) eventLoop() {
@@ -46,6 +52,14 @@ func (s *Subscriber) eventLoop() {
 	}
 }
 func (s *Subscriber) publish(topic any) error {
+	if s.blockWhenBufferIsFull {
+		select {
+		case s.bufferChan <- topic:
+			return nil
+		case <-s.ctx.Done():
+			return s.ctx.Err()
+		}
+	}
 	select {
 	case s.bufferChan <- topic:
 		return nil
