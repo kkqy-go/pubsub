@@ -3,6 +3,7 @@ package pubsub
 import (
 	"context"
 	"errors"
+	"math"
 	"time"
 )
 
@@ -72,6 +73,9 @@ func newSubscriber(ctx context.Context, publisher *Publisher, options ...Subscri
 	}
 	for _, option := range options {
 		option(s) // apply options to the subscriber
+	}
+	if s.timeout == 0 {
+		s.timeout = time.Duration(math.MaxInt64)
 	}
 	if s.bufferChan == nil {
 		// set default buffer length if not set by option
