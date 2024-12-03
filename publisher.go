@@ -12,14 +12,9 @@ type Publisher struct {
 	subscribers          sync.Map // 保存所有订阅者
 	newSubscriberHandler NewSubscriberHandler
 }
-type NewSubscriberHandler func(newSubscriber *Subscriber)
+type NewSubscriberHandler func(ctx context.Context, publishFunc func(topic any) error)
 type PublisherOption func(*Publisher)
 
-func WithNewSubscriberHandler(newSubscriberHandler NewSubscriberHandler) PublisherOption {
-	return func(p *Publisher) {
-		p.newSubscriberHandler = newSubscriberHandler
-	}
-}
 func (p *Publisher) Subscribe(ctx context.Context, options ...SubscriberOption) *Subscriber {
 	sub := newSubscriber(ctx, p, options...)
 	if sub.channels == nil {
@@ -36,7 +31,7 @@ func (p *Publisher) Subscribe(ctx context.Context, options ...SubscriberOption) 
 	}
 	p.subscribers.Store(sub, nil)
 	if p.newSubscriberHandler != nil {
-		p.newSubscriberHandler(sub)
+		p.newSubscriberHandler(ctx, sub.publish)
 	}
 	return sub
 }
@@ -103,6 +98,11 @@ func (p *Publisher) Publish(topic any, channels ...any) (errorMap map[*Subscribe
 		}
 	}
 	return
+}
+func WithNewSubscriberHandler(newSubscriberHandler NewSubscriberHandler) PublisherOption {
+	return func(p *Publisher) {
+		p.newSubscriberHandler = newSubscriberHandler
+	}
 }
 func NewPublisher(options ...PublisherOption) *Publisher {
 	p := &Publisher{}
